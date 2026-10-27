@@ -224,7 +224,7 @@ describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
     });
     assert.equal(banned.status, "banned");
     assert.equal(banned.hasBan, true);
-    assert.deepEqual(banned.details, ["Sud qarori 2026-14"]);
+    assert.deepEqual(banned.banDetails, ["Sud qarori 2026-14"]);
 
     const pledged = normalizeNotariusResponse({ result: { isPledged: true } });
     assert.equal(pledged.status, "pledged");
@@ -238,7 +238,7 @@ describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
   it("NOTARIUS_API_URL berilmasa tarmoqqa chiqmaydi va unavailable qaytaradi", async () => {
     const started = Date.now();
     const result = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { plateNumber: "01 A 777 AA", techPassSeries: "AAF", techPassNumber: "1234567" },
       {}
     );
 
@@ -250,33 +250,23 @@ describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
   });
 
   it("haqiqiy javob: toza, taqiq, garov, 500 va HTML holatlari", async () => {
+    const query = { plateNumber: "01 A 777 AA", techPassSeries: "AAF", techPassNumber: "1234567" };
+
     const clean = await startStub(jsonReply({ data: { hasBan: false, isPledged: false } }));
-    const cleanResult = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
-      { NOTARIUS_API_URL: clean.url }
-    );
+    const cleanResult = await checkVehicleBans(query, { NOTARIUS_API_URL: clean.url });
     assert.equal(cleanResult.checked, true);
     assert.equal(cleanResult.status, "clean");
 
     const banned = await startStub(jsonReply({ data: { hasBan: true } }));
-    const bannedResult = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
-      { NOTARIUS_API_URL: banned.url }
-    );
+    const bannedResult = await checkVehicleBans(query, { NOTARIUS_API_URL: banned.url });
     assert.equal(bannedResult.status, "banned");
 
     const pledged = await startStub(jsonReply({ data: { isPledged: true } }));
-    const pledgedResult = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
-      { NOTARIUS_API_URL: pledged.url }
-    );
+    const pledgedResult = await checkVehicleBans(query, { NOTARIUS_API_URL: pledged.url });
     assert.equal(pledgedResult.status, "pledged");
 
     const broken = await startStub(jsonReply({ error: "boom" }, { status: 500 }));
-    const brokenResult = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
-      { NOTARIUS_API_URL: broken.url }
-    );
+    const brokenResult = await checkVehicleBans(query, { NOTARIUS_API_URL: broken.url });
     assert.equal(brokenResult.checked, false);
     assert.equal(brokenResult.status, "unavailable");
     assert.equal(brokenResult.reason, "http_500");
@@ -285,10 +275,7 @@ describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
       res.setHeader("content-type", "text/html");
       res.end("<html><body>Taqiq: yoʻq</body></html>");
     });
-    const htmlResult = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
-      { NOTARIUS_API_URL: html.url }
-    );
+    const htmlResult = await checkVehicleBans(query, { NOTARIUS_API_URL: html.url });
     assert.equal(htmlResult.status, "unavailable");
     assert.equal(htmlResult.reason, "html_response");
 
@@ -301,7 +288,7 @@ describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
     });
     const started = Date.now();
     const result = await checkVehicleBans(
-      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { plateNumber: "01 A 777 AA", techPassSeries: "AAF", techPassNumber: "1234567" },
       { NOTARIUS_API_URL: slow.url, NOTARIUS_TIMEOUT_MS: "200" }
     );
 

@@ -94,7 +94,7 @@ berilganda. YHXBB jarimalari boʻlimi esa SMS talab qilgani uchun loyihadan butu
 
 ## E-Notarius (taqiq va garov) integratsiyasi
 
-`lib/notarius.mjs` — `checkVehicleBans({ plateNumber, techSeries, techNumber }, env)`:
+`lib/notarius.mjs` — `checkVehicleBans({ plateNumber, techPassSeries, techPassNumber }, env)`:
 
 - Oʻzbekiston Notariat axborot tizimi orqali bir soʻrovda: davlat ijrochisi (MIB) taqiqlari,
   sud xatlovlari, soliq taqiqlari va bank/lizing garovlari tekshiriladi.
@@ -105,7 +105,7 @@ berilganda. YHXBB jarimalari boʻlimi esa SMS talab qilgani uchun loyihadan butu
   `{ "govNumber": "01A777AA", "techPassportSeria": "AAF", "techPassportNumber": "1234567" }`
   (ixtiyoriy `NOTARIUS_API_KEY` → `Authorization: Bearer`).
 - Javob tolerant oʻqiladi (`data`/`result` konteynerlari, `hasBan`/`isPledged` …):
-  `{ checked, hasBan, isPledged, details, status: "clean" | "banned" | "pledged" | "unavailable", reason }`.
+  `{ checked, hasBan, isPledged, banDetails, status: "clean" | "banned" | "pledged" | "unavailable", reason }`.
 - HTML javob „taqiq bor“ deb talqin qilinmaydi — bunday javob `unavailable` hisoblanadi.
 - Hech qachon throw qilmaydi: 500, timeout (`NOTARIUS_TIMEOUT_MS`, default 4000) va tarmoq
   xatolari `{ checked: false, status: "unavailable" }` ga aylanadi.
@@ -192,7 +192,7 @@ Response qiymatlari:
 - `report.vehicle` — { model, year, vin, bodyNumber, engineNumber }
 - `report.insurance` — { company, policy, startDate, endDate, status, tone }
 - `report.vin` — dekod qilingan VIN: `{ wmi, country, manufacturer, modelYear, assemblyPlant, plantCode, region, serial }` yoki `null`
-- `report.notarius` — `{ checked, status, hasBan, isPledged, details, reason }`
+- `report.notarius` — `{ checked, status, hasBan, isPledged, banDetails, reason }`
 - `report.taxi` — `{ checked, status, isTaxi, licenseInfo, reason }`
 - `report.totals.bans` — 1, agar E-Notarius taqiqi yoki garovi topilsa
 - `report.source.registry` — "epolis" / "not_found" / "unavailable"
