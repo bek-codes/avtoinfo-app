@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Local environment / secrets (never commit)
+.env
+.env.local
+.dev.vars
+
+# Local-only throwaways and scratch harnesses (kept out of git and of the Vercel upload,
+# see .vercelignore as well)
+.devserver.mjs
+.harness.mjs
+.pdfcheck.mjs
+.epolis-stub.mjs
+.upstream.mjs
+.verify.mjs
+.verify.out
+.tmp.*
+
+# Local tunnel / wrangler state
+.tunnel/
+.wrangler/
+
+# Logs
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db

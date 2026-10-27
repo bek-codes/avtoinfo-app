@@ -1,0 +1,11 @@
+# Local-only artifacts — never upload (public/ + api/ + lib/ are what Vercel needs).
+node_modules
+.tunnel
+.dev.vars
+*.log
+.harness.mjs
+.pdfcheck.mjs
+.epolis-stub.mjs
+.upstream.mjs
+.verify.mjs
+.tmp.json

@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#060a13" />
+    <meta
+      name="description"
+      content="AvtoInfo — Oʻzbekiston boʻyicha avtomobil tarixini tekshirish: MIB taqiqlari, YHXBB jarimalari, notarial garov va sugʻurta."
+    />
+    <title>AvtoInfo — Avtomobil tarixini tekshirish</title>
+
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+
+  <body>
+    <div class="bg-fx" aria-hidden="true">
+      <div class="bg-glow bg-glow--top"></div>
+      <div class="bg-glow bg-glow--bottom"></div>
+      <div class="bg-grid"></div>
+    </div>
+
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 17h14" />
+              <path d="M6.5 17V9.5l2-3h7l2 3V17" />
+              <path d="M6.5 13h11" />
+              <circle cx="9" cy="17" r="1.6" />
+              <circle cx="15" cy="17" r="1.6" />
+            </svg>
+          </span>
+          <span class="brand__text">
+            <strong>AvtoInfo</strong>
+            <small>Avtomobil tarixi</small>
+          </span>
+        </div>
+
+        <span class="pill pill--muted">
+          <span class="dot"></span>
+          Onlayn baza
+        </span>
+      </header>
+
+      <main class="main">
+        <!-- ============ 1. INPUT ============ -->
+        <section class="screen is-active" id="screen-input" aria-labelledby="inputTitle">
+          <div class="hero">
+            <p class="eyebrow">
+              <span class="eyebrow__line"></span>
+              Oʻzbekiston · Avto tarix
+            </p>
+            <h1 class="hero__title" id="inputTitle">
+              Avtomobilni
+              <span class="text-gradient">toʻliq tekshirish</span>
+            </h1>
+            <p class="hero__lede">
+              Taqiqlar, jarimalar, garov va sugʻurta — bir necha soniyada.
+            </p>
+          </div>
+
+          <form class="form" id="check-form" novalidate autocomplete="off">
+            <div class="card">
+              <div class="card__head">
+                <label class="card__label" for="plateNumber">Davlat raqami</label>
+                <span class="card__hint">Namuna: 01 · A 777 AA</span>
+              </div>
+
+              <!-- Realistic Uzbekistan plate -->
+              <div class="plate" id="plate">
+                <span class="plate__uz" aria-hidden="true">
+                  <svg class="plate__flag" viewBox="0 0 30 20" aria-hidden="true">
+                    <rect width="30" height="20" fill="#1eb53a" />
+                    <rect y="6.6" width="30" height="6.8" fill="#ffffff" />
+                    <rect y="13.4" width="30" height="6.6" fill="#0099b5" />
+                    <rect y="6" width="30" height="0.7" fill="#ce1126" />
+                    <rect y="13.3" width="30" height="0.7" fill="#ce1126" />
+                  </svg>
+                  <span class="plate__uz-text">UZ</span>
+                </span>
+
+                <input
+                  class="plate__region"
+                  id="region"
+                  name="region"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="2"
+                  placeholder="01"
+                  aria-label="Viloyat kodi (2 raqam)"
+                  spellcheck="false"
+                />
+
+                <span class="plate__divider" aria-hidden="true"></span>
+
+                <input
+                  class="plate__number"
+                  id="plateNumber"
+                  name="plateNumber"
+                  type="text"
+                  inputmode="text"
+                  placeholder="A 777 AA"
+                  aria-label="Davlat raqami (A 777 AA)"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                />
+              </div>
+
+              <p class="field-error" id="plate-error" role="alert" hidden></p>
+            </div>
+
+            <div class="card">
+              <div class="card__head">
+                <label class="card__label" for="tpSeries">Texnik pasport</label>
+                <span class="card__hint">Seriya va raqam</span>
+              </div>
+
+              <div class="doc">
+                <input
+                  class="doc__series"
+                  id="tpSeries"
+                  name="tpSeries"
+                  type="text"
+                  inputmode="text"
+                  maxlength="3"
+                  placeholder="AAF"
+                  aria-label="Texnik pasport seriyasi"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                />
+                <span class="doc__sep" aria-hidden="true"></span>
+                <input
+                  class="doc__number"
+                  id="tpNumber"
+                  name="tpNumber"
+                  type="text"
+                  inputmode="numeric"
+                  maxlength="7"
+                  placeholder="1234567"
+                  aria-label="Texnik pasport raqami"
+                  spellcheck="false"
+                />
+              </div>
+
+              <p class="field-error" id="tp-error" role="alert" hidden></p>
+            </div>
+
+            <button class="btn btn--primary btn--lg" type="submit" id="submit-btn">
+              <span>Toʻliq tekshirish</span>
+              <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h13" />
+                <path d="M12.5 5.5 19 12l-6.5 6.5" />
+              </svg>
+            </button>
+
+            <p class="fineprint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3l7 3v6c0 4.3-2.9 7.7-7 9-4.1-1.3-7-4.7-7-9V6l7-3Z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              Maʼlumotlar E-Polis (ersp.e-osgo.uz) bazasidan olinadi — MIB, YHXBB va garov integratsiyasi hozircha ulanmagan
+            </p>
+          </form>
+        </section>
+
+        <!-- ============ 2. LOADING ============ -->
+        <section class="screen" id="screen-loading" aria-labelledby="loadingTitle" aria-live="polite">
+          <div class="loading">
+            <div class="scan" aria-hidden="true">
+              <span class="scan__ring scan__ring--1"></span>
+              <span class="scan__ring scan__ring--2"></span>
+              <span class="scan__core">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 17h14" />
+                  <path d="M6.5 17V9.5l2-3h7l2 3V17" />
+                  <path d="M6.5 13h11" />
+                  <circle cx="9" cy="17" r="1.5" />
+                  <circle cx="15" cy="17" r="1.5" />
+                </svg>
+              </span>
+            </div>
+
+            <h2 class="loading__title" id="loadingTitle">Maʼlumotlar tekshirilmoqda</h2>
+            <p class="loading__plate" id="loading-plate">01 · A 777 AA</p>
+
+            <ol class="steps" id="steps">
+              <li class="step" data-step="0">
+                <span class="step__icon" aria-hidden="true"></span>
+                <span class="step__label">MIB taqiqlari tekshirilmoqda...</span>
+                <span class="step__check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+                </span>
+              </li>
+              <li class="step" data-step="1">
+                <span class="step__icon" aria-hidden="true"></span>
+                <span class="step__label">YHXBB jarimalari yuklanmoqda...</span>
+                <span class="step__check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+                </span>
+              </li>
+              <li class="step" data-step="2">
+                <span class="step__icon" aria-hidden="true"></span>
+                <span class="step__label">Sugʻurta muddati aniqlanmoqda...</span>
+                <span class="step__check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+                </span>
+              </li>
+            </ol>
+
+            <div class="progress">
+              <div class="progress__bar" id="progress-bar"></div>
+            </div>
+
+            <button class="btn btn--ghost btn--sm" type="button" id="cancel-btn">Bekor qilish</button>
+          </div>
+        </section>
+
+        <!-- ============ 3. RESULTS ============ -->
+        <section class="screen" id="screen-results" aria-labelledby="resultsTitle">
+          <div class="result-head">
+            <p class="eyebrow">
+              <span class="eyebrow__line"></span>
+              Tekshiruv natijasi
+            </p>
+
+            <h1 class="result-head__title" id="resultsTitle">Tekshirilgan avtomobil</h1>
+
+            <div class="plate plate--static" aria-label="Tekshirilgan davlat raqami">
+              <span class="plate__uz">
+                <svg class="plate__flag" viewBox="0 0 30 20" aria-hidden="true">
+                  <rect width="30" height="20" fill="#1eb53a" />
+                  <rect y="6.6" width="30" height="6.8" fill="#ffffff" />
+                  <rect y="13.4" width="30" height="6.6" fill="#0099b5" />
+                  <rect y="6" width="30" height="0.7" fill="#ce1126" />
+                  <rect y="13.3" width="30" height="0.7" fill="#ce1126" />
+                </svg>
+                <span class="plate__uz-text">UZ</span>
+              </span>
+              <span class="plate__region plate__region--static" id="result-region">01</span>
+              <span class="plate__divider" aria-hidden="true"></span>
+              <span class="plate__number plate__number--static" id="result-plate">A 777 AA</span>
+            </div>
+
+            <div class="meta">
+              <span class="meta__item" id="result-tp">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="4" y="3" width="16" height="18" rx="2.5" />
+                  <path d="M8 7h8M8 11h8M8 15h4" />
+                </svg>
+                <span id="result-tp-text">TP AAF 1234567</span>
+              </span>
+              <span class="meta__dot" aria-hidden="true"></span>
+              <span class="meta__item meta__item--muted" id="result-time">bugun, 14:32</span>
+            </div>
+          </div>
+
+          <div class="verdict" id="verdict">
+            <span class="verdict__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+                <path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+              </svg>
+            </span>
+            <span class="verdict__text">
+              <small>Umumiy holat</small>
+              <strong id="verdict-text">Diqqat: 2 ta jarima aniqlandi</strong>
+            </span>
+            <span class="verdict__count" id="verdict-count">2</span>
+          </div>
+
+          <div class="notice" id="data-notice" role="status" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v.01M12 11v5" />
+            </svg>
+            <span id="data-notice-text"></span>
+          </div>
+
+          <div class="results" id="results"></div>
+
+          <div class="actions">
+            <button class="btn btn--primary btn--lg" type="button" id="pdf-btn">
+              <svg class="btn__icon btn__icon--left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v11" />
+                <path d="m8 10.5 4 4 4-4" />
+                <path d="M4 18v2h16v-2" />
+              </svg>
+              <span>Toʻliq PDF hisobotni yuklash</span>
+            </button>
+
+            <button class="btn btn--ghost btn--lg" type="button" id="reset-btn">
+              <svg class="btn__icon btn__icon--left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 9a8 8 0 1 1-.6 5" />
+                <path d="M4 4v5h5" />
+              </svg>
+              <span>Boshqa mashinani tekshirish</span>
+            </button>
+          </div>
+
+          <p class="fineprint fineprint--center" id="results-source">
+            Hisobot namuna maʼlumotlari asosida shakllantiriladi
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m5 13 4 4L19 7" />
+      </svg>
+      <span id="toast-text"></span>
+    </div>
+
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>
