@@ -17,10 +17,6 @@ export class ApiError extends Error {
   }
 }
 
-export function formatMoney(value) {
-  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
-
 function pad(value) {
   return String(value).padStart(2, "0");
 }

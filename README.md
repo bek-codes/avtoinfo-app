@@ -75,9 +75,9 @@ Response (qisqacha):
     "vehicle": { "model": "Samsung Solaris", "year": "2020", "vin": "...", "engineNumber": "..." },
     "insurance": { "company": "...", "policy": "...", "startDate": "...", "endDate": "...", "status": "...", "tone": "info" },
     "verdict": { "tone": "ok", "label": "Avtomobil va sugʻurta maʼlumotlari topildi", "count": 0 },
-    "checks": [ { "id": "vehicle", ... }, { "id": "prohibitions", ... }, { "id": "fines", ... }, { "id": "pledge", ... }, { "id": "insurance", ... } ],
-    "source": { "registry": "epolis", "insurance": "live", "provider": "ersp.e-osgo.uz" },
-    "fines": { "count": 0, "amount": 0, "items": [] }
+    "checks": [ { "id": "vehicle", ... }, { "id": "prohibitions", ... }, { "id": "taxi", ... }, { "id": "insurance", ... } ],
+    "verdict": { "tone": "ok", "label": "Avtomobil va sugʻurta maʼlumotlari topildi", "count": 0 },
+    "source": { "registry": "epolis", "insurance": "live", "provider": "ersp.e-osgo.uz" }
   }
 }
 ```
@@ -88,28 +88,45 @@ Agar E-Polis bazasidan ma`lumot kelmasa (timeout, HTML, not_found):
 - `report.notice` → oʻzbekcha tushunarli xabar
 - Frontend „Tekshirilmagan“ / „Topilmadi“ statusini koʻrsatadi va **hech qanday soxta raqam chiqarmaydi**
 
-Hisobotda oʻylab topilgan qiymat yoʻq. MIB bo`limi faqat `MIB_API_URL` berilganda tekshiriladi
-(aks holda „Tekshirilmadi“), YHXBB jarimalari va notarial garov esa hali ulanmagan — ular
-ham „Tekshirilmagan“ holatida turadi.
+Hisobotda oʻylab topilgan qiymat yoʻq. Taqiq/garov boʻlimi faqat `NOTARIUS_API_URL`
+berilganda tekshiriladi (aks holda „Tekshirilmadi“), taksi boʻlimi — `TAXI_API_URL`
+berilganda. YHXBB jarimalari boʻlimi esa SMS talab qilgani uchun loyihadan butunlay chiqarilgan.
 
-## MIB (Majburiy ijro byurosi) integratsiyasi
+## E-Notarius (taqiq va garov) integratsiyasi
 
-`lib/mib.mjs` — `checkMibBan(plateNumber, env)`:
+`lib/notarius.mjs` — `checkVehicleBans({ plateNumber, techSeries, techNumber }, env)`:
 
-- MIB ning davlat raqami boʻyicha taqiq/qidiruv xizmati hujjatlashtirilgan ochiq JSON API
-  eʼlon qilmagan, shuning uchun adapter manzilni oʻylab topmaydi: `MIB_API_URL` boʻsh boʻlsa
-  tarmoqqa umuman chiqmaydi va `{ checked: false, status: "unavailable" }` qaytaradi.
-- Manzil berilganda `POST {MIB_API_URL}` yuboriladi, tana: `{ "govNumber": "01A777AA" }`
-  (ixtiyoriy `MIB_API_KEY` → `Authorization: Bearer`).
-- Javob tolerant oʻqiladi (`data`/`result` konteynerlari, `hasBan`/`banned`/`taqiq` …):
-  `{ checked, hasBan, hasSearch, details, status: "clean" | "banned" | "wanted" | "unavailable", reason }`.
-- HTML javob „taqiq bor“ deb talqin qilinmaydi (MIB sahifasida ham „taqiq“ soʻzi bor) —
-  bunday javob `unavailable` hisoblanadi.
-- Hech qachon throw qilmaydi: 500, timeout (`MIB_TIMEOUT_MS`, default 4000) va tarmoq xatolari
-  `{ checked: false, status: "unavailable" }` ga aylanadi.
+- Oʻzbekiston Notariat axborot tizimi orqali bir soʻrovda: davlat ijrochisi (MIB) taqiqlari,
+  sud xatlovlari, soliq taqiqlari va bank/lizing garovlari tekshiriladi.
+- Rasmiy ochiq JSON API hujjatlashtirilmagan, shuning uchun adapter manzilni oʻylab topmaydi:
+  `NOTARIUS_API_URL` boʻsh boʻlsa tarmoqqa umuman chiqmaydi va
+  `{ checked: false, status: "unavailable" }` qaytaradi.
+- Manzil berilganda `POST {NOTARIUS_API_URL}` yuboriladi, tana:
+  `{ "govNumber": "01A777AA", "techPassportSeria": "AAF", "techPassportNumber": "1234567" }`
+  (ixtiyoriy `NOTARIUS_API_KEY` → `Authorization: Bearer`).
+- Javob tolerant oʻqiladi (`data`/`result` konteynerlari, `hasBan`/`isPledged` …):
+  `{ checked, hasBan, isPledged, details, status: "clean" | "banned" | "pledged" | "unavailable", reason }`.
+- HTML javob „taqiq bor“ deb talqin qilinmaydi — bunday javob `unavailable` hisoblanadi.
+- Hech qachon throw qilmaydi: 500, timeout (`NOTARIUS_TIMEOUT_MS`, default 4000) va tarmoq
+  xatolari `{ checked: false, status: "unavailable" }` ga aylanadi.
 
-Kartochkalarda: `clean` → yashil „Taqiq yoʻq“, `banned`/`wanted` → qizil „Taqiq bor“/„Qidiruvda“,
-javob yoʻq → kulrang „Tekshirilmadi“. Xuddi shu holat PDF hisobotda ham chiqadi.
+Kartochkada: `clean` → yashil „Taqiq yoʻq / Garovi yoʻq“, `banned` → qizil „Taqiq bor“,
+`pledged` → qizil „Garovi bor“, javob yoʻq → kulrang „Tekshirilmadi“. Xuddi shu holat PDF
+hisobotda ham chiqadi. Eski `lib/mib.mjs` shu modul oʻrniga olib tashlangan.
+
+## Taksi litsenziyasi reyestri
+
+`lib/taxi.mjs` — `checkTaxiLicense(plateNumber, env)`:
+
+- Transport vazirligi yoʻnalishsiz taksi litsenziyasi reyestri (license.gov.uz yoʻnalishi)
+  faqat davlat raqami boʻyicha litsenziya mavjudligini tekshiradi.
+- `TAXI_API_URL` boʻsh boʻlsa tarmoqqa chiqmaydi va `{ checked: false, status: "unavailable" }`
+  qaytaradi; manzil berilganda `{ checked: true, isTaxi, licenseInfo, status: "taxi" | "clean" }`
+  qaytadi.
+- Hech qachon throw qilmaydi (timeout `TAXI_TIMEOUT_MS`, default 4000).
+
+Kartochkada: litsenziya bor → sariq „Taksi litsenziyasi mavjud“, yoʻq → koʻk
+„Taksi litsenziyasi yoʻq“, javob yoʻq → kulrang „Tekshirilmadi“.
 
 ## Oflayn VIN dekoder
 
@@ -171,15 +188,16 @@ Request body validatsiyasi `lib/check.mjs` da:
 Response qiymatlari:
 
 - `report.verdict` — overall status (ok / warn, label, count)
-- `report.checks[]` — 5 ta kartka: vehicle, prohibitions, fines, pledge, insurance
+- `report.checks[]` — 4 ta kartka: vehicle, prohibitions (E-Notarius), taxi, insurance
 - `report.vehicle` — { model, year, vin, bodyNumber, engineNumber }
 - `report.insurance` — { company, policy, startDate, endDate, status, tone }
 - `report.vin` — dekod qilingan VIN: `{ wmi, country, manufacturer, modelYear, assemblyPlant, plantCode, region, serial }` yoki `null`
-- `report.mib` — `{ checked, status, hasBan, hasSearch, details, reason }`
-- `report.totals.bans` — 1, agar MIB taqiqi yoki qidiruvi topilsa
+- `report.notarius` — `{ checked, status, hasBan, isPledged, details, reason }`
+- `report.taxi` — `{ checked, status, isTaxi, licenseInfo, reason }`
+- `report.totals.bans` — 1, agar E-Notarius taqiqi yoki garovi topilsa
 - `report.source.registry` — "epolis" / "not_found" / "unavailable"
 - `report.source.insurance` — "live" / "not_found" / "fallback"
-- `report.notice` — xabar, agar E-Polis bilan bogʻlanmagan yoki MIB tekshirilmagan boʻlsa
+- `report.notice` — xabar, agar E-Polis bilan bogʻlanmagan yoki E-Notarius tekshirilmagan boʻlsa
 
 ## Vaqtinchalik public tunnel (Telegramda sinash uchun)
 
@@ -195,10 +213,15 @@ EPOLIS_API_URL=https://ersp.e-osgo.uz/api/v1/public/check/osgo
 EPOLIS_API_KEY=<optional bearer token>
 EPOLIS_TIMEOUT_MS=4000
 
-# MIB boʻlimini yoqish (rasmiy endpoint yoki oʻz proxyingiz):
-MIB_API_URL=https://<mib-endpoint>
-MIB_API_KEY=<optional bearer token>
-MIB_TIMEOUT_MS=4000
+# E-Notarius boʻlimini yoqish (rasmiy endpoint yoki oʻz proxyingiz):
+NOTARIUS_API_URL=https://<notarius-endpoint>
+NOTARIUS_API_KEY=<optional bearer token>
+NOTARIUS_TIMEOUT_MS=4000
+
+# Taksi reyestri boʻlimini yoqish:
+TAXI_API_URL=https://<taxi-registry-endpoint>
+TAXI_API_KEY=<optional bearer token>
+TAXI_TIMEOUT_MS=4000
 ```
 
 Birorta manzil berilmasa ham ilova ishlaydi — tegishli boʻlim „Tekshirilmagan“ boʻlib qoladi.
@@ -211,9 +234,9 @@ npm test        # oflayn testlar (tarmoqqa chiqmaydi, stub serverlar)
 ```
 
 `.github/workflows/ci.yml` har bir push va pull request da Node 20 bilan shu ikkala buyruqni
-yuritadi. Testlar `test/offline.test.mjs` da: VIN dekoder, MIB adapteri (clean/banned/wanted/
-unavailable), E-Polis parseri va CSRF retry, parallel ishga tushirish, hisobot tuzilishi,
-HTTP qatlami va „soxta maʼlumot yoʻq“ qoidasi.
+yuritadi. Testlar `test/offline.test.mjs` da: VIN dekoder, E-Notarius adapteri
+(clean/banned/pledged/unavailable), taksi adapteri, E-Polis parseri va CSRF retry, parallel
+ishga tushirish, hisobot tuzilishi (4 ta kartochka) va „soxta maʼlumot yoʻq“ qoidasi.
 
 ## Deploy
 
@@ -254,8 +277,7 @@ PDF asbobi:
 - Davlat raqami kartochkasi (region, number, vertical bar)
 - Tekshiruv vaqti (real date/time)
 - Teknik pasport ma`lumoti
-- Natijalar kartochkalari (5 ta)
-- Jarimalar tafsiloti (agar mavjud boʻlsa)
+- Natijalar kartochkalari (4 ta: avtomobil, sugʻurta, taqiq/garovi, taksi)
 - Chituish (disclaimer): E-Polis manbasi va tekshirilmagan bo`limlar haqida
 - Footer: AvtoInfo · Telegram Mini App, yaratilgan vaqti
 

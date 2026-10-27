@@ -4,7 +4,7 @@
  * which keeps the Mini App payload tiny and works inside Telegram's WebView.
  */
 
-import { formatDateTime, formatMoney } from "./report.js";
+import { formatDateTime } from "./report.js";
 
 const PAGE = { width: 595, height: 842 };
 const MARGIN = 40;
@@ -302,18 +302,14 @@ function drawFindings(c, report) {
   report.checks.forEach((check, index) => {
     if (index > 0) y += ROW + ROW_GAP;
 
-    const detail =
-      check.detail ??
-      (typeof check.amount === "number"
-        ? `${check.status} — ${formatMoney(check.amount)} so'm`
-        : check.status);
+    const detail = check.detail ?? check.status;
 
     drawRow(c, y, {
       title: check.title,
       detail,
       // Izoh alohida qatorda: VIN, dvigatel va zavod maʼlumotlari sigʻadi.
       note: check.note ?? null,
-      status: check.amount > 0 ? "TO'LANMAGAN" : check.status,
+      status: check.status,
       tone: check.tone,
     });
   });
@@ -321,52 +317,20 @@ function drawFindings(c, report) {
   return y + ROW;
 }
 
-function drawFines(c, report, y) {
-  const fines = report.checks.find((check) => check.id === "fines");
-  if (!fines || !Array.isArray(fines.items) || fines.items.length === 0) return y;
-
-  c.text("Jarimalar tafsiloti", MARGIN, y + 32, {
-    size: 10.5,
-    bold: true,
-    color: COLORS.navy,
-  });
-
-  let rowY = y + 48;
-  c.line(MARGIN, rowY, RIGHT, rowY, { color: COLORS.border });
-
-  fines.items.forEach((item) => {
-    rowY += 20;
-    c.text(item.date, MARGIN, rowY, { size: 9.5, color: COLORS.gray });
-    c.text(item.reason, MARGIN + 78, rowY, { size: 9.5, color: COLORS.ink });
-    c.text(`${formatMoney(item.amount)} so'm`, RIGHT, rowY, {
-      size: 9.5,
-      bold: true,
-      color: COLORS.warn,
-      align: "right",
-    });
-    rowY += 8;
-    c.line(MARGIN, rowY, RIGHT, rowY, { color: "#EEF2F7" });
-  });
-
-  rowY += 16;
-  c.text("Jami", MARGIN, rowY, { size: 9.5, bold: true, color: COLORS.navy });
-  c.text(`${formatMoney(fines.amount)} so'm`, RIGHT, rowY, {
-    size: 10.5,
-    bold: true,
-    color: COLORS.navy,
-    align: "right",
-  });
-
-  return rowY + 12;
+/** E-Notarius bo'limi PDF'da faqat haqiqiy javobga tayanadi (tekshirilmagan / taqiq / garov / toza). */
+function notariusLine(report) {
+  const notarius = report?.notarius;
+  if (!notarius?.checked) return "E-Notarius: tekshirilmadi";
+  if (notarius.hasBan) return "E-Notarius: taqiq bor";
+  if (notarius.isPledged) return "E-Notarius: garov bor";
+  return "E-Notarius: toza";
 }
 
-/** MIB bo'limi PDF'da faqat haqiqiy javobga tayanadi (tekshirilmagan / taqiq / qidiruv / toza). */
-function mibLine(report) {
-  const mib = report?.mib;
-  if (!mib?.checked) return "MIB: tekshirilmadi";
-  if (mib.hasBan) return "MIB: taqiq bor";
-  if (mib.hasSearch) return "MIB: qidiruvda";
-  return "MIB: taqiq yo'q";
+/** Taksi reyestri bo'limi PDF'da faqat haqiqiy javobga tayanadi. */
+function taxiLine(report) {
+  const taxi = report?.taxi;
+  if (!taxi?.checked) return "Taksi reyestri: tekshirilmadi";
+  return taxi.isTaxi ? "Taksi: litsenziya bor" : "Taksi: litsenziya yo'q";
 }
 
 function drawDisclaimer(c, y, report) {
@@ -390,7 +354,7 @@ function drawDisclaimer(c, y, report) {
     { size: 8.5, color: "#7C5A16" }
   );
   c.text(
-    `${mibLine(report)}. YHXBB jarimalari va notarial garov bo'limlari hozircha ulanmagan — «Tekshirilmagan» deb ko'rsatilgan.`,
+    `${notariusLine(report)}. ${taxiLine(report)}.`,
     MARGIN + 14,
     y + 63,
     { size: 7.5, color: "#7C5A16" }
@@ -418,8 +382,7 @@ export function buildPdf(report) {
   drawHeader(c, report);
   drawPlate(c, report);
   const findingsBottom = drawFindings(c, report);
-  const finesBottom = drawFines(c, report, findingsBottom);
-  drawDisclaimer(c, finesBottom, report);
+  drawDisclaimer(c, findingsBottom, report);
   drawFooter(c, report);
 
   // Every string op already goes through esc(), so the stream stays pure ASCII.

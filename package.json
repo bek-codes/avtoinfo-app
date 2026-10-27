@@ -2,12 +2,12 @@
   "name": "avtoinfo-mini-app",
   "version": "1.1.0",
   "private": true,
-  "description": "AvtoInfo — Telegram Mini App for checking Uzbekistan car history (prohibitions, fines, pledge, insurance).",
+  "description": "AvtoInfo — Telegram Mini App for checking Uzbekistan car history (bans, pledge, insurance, taxi license).",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "check": "node --check worker.js && node --check server.mjs && node --check lib/check.mjs && node --check lib/epolis.mjs && node --check lib/mib.mjs && node --check lib/vin.mjs && node --check api/check.js && node --check public/assets/js/app.js && node --check public/assets/js/pdf.js && node --check public/assets/js/report.js && node --check public/assets/js/plate.js && node --check public/assets/js/telegram.js",
+    "check": "node --check worker.js && node --check server.mjs && node --check lib/check.mjs && node --check lib/epolis.mjs && node --check lib/notarius.mjs && node --check lib/taxi.mjs && node --check lib/vin.mjs && node --check api/check.js && node --check public/assets/js/app.js && node --check public/assets/js/pdf.js && node --check public/assets/js/report.js && node --check public/assets/js/plate.js && node --check public/assets/js/telegram.js",
     "test": "node --test"
   },
   "engines": {

@@ -5,10 +5,12 @@
  *   POST /api/check  →  { ok: true, report }
  *
  * Validation, report building and the real E-Polis (ersp.e-osgo.uz) insurance lookup plus the
- * MIB ban/search adapter live in lib/check.mjs → lib/epolis.mjs / lib/mib.mjs / lib/vin.mjs,
+ * E-Notarius ban/pledge adapter and the taxi-license registry adapter live in
+ * lib/check.mjs → lib/epolis.mjs / lib/notarius.mjs / lib/taxi.mjs / lib/vin.mjs,
  * the same modules the Vercel Serverless Function (api/check.js) uses, so both runtimes answer
- * identically. EPOLIS_* / MIB_* are read from the Worker env — they must never be exposed to
- * the browser. A missing MIB_API_URL is not an error: that block reports "Tekshirilmadi".
+ * identically. EPOLIS_* / NOTARIUS_* / TAXI_* are read from the Worker env — they must never
+ * be exposed to the browser. A missing NOTARIUS_API_URL / TAXI_API_URL is not an error:
+ * those blocks report "Tekshirilmadi".
  */
 
 import {
@@ -47,7 +49,7 @@ export default {
       const { payload, error } = await readJsonBody(raw);
       if (error) return toResponse(error);
 
-      // env vars (EPOLIS_* / MIB_*) come from the Worker bindings/vars.
+      // env vars (EPOLIS_* / NOTARIUS_* / TAXI_*) come from the Worker bindings/vars.
       return toResponse(await handleCheckPayload(payload, env));
     }
 

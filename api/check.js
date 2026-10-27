@@ -11,10 +11,14 @@
  *   EPOLIS_API_URL    optional — override the default ERSP endpoint
  *   EPOLIS_API_KEY    optional — bearer token for that endpoint
  *   EPOLIS_TIMEOUT_MS optional — request timeout in ms (default 4000)
- *   MIB_API_URL       optional — MIB ban/search endpoint (no public JSON API is documented,
- *                      so without it the MIB block honestly reports "Tekshirilmadi")
- *   MIB_API_KEY       optional — bearer token for that endpoint
- *   MIB_TIMEOUT_MS    optional — request timeout in ms (default 4000)
+ *   NOTARIUS_API_URL  optional — E-Notarius ban/pledge endpoint (no public JSON API is
+ *                      documented, so without it the block honestly reports "Tekshirilmadi")
+ *   NOTARIUS_API_KEY  optional — bearer token for that endpoint
+ *   NOTARIUS_TIMEOUT_MS optional — request timeout in ms (default 4000)
+ *   TAXI_API_URL      optional — taxi license registry endpoint (license.gov.uz direction);
+ *                      without it the taxi block honestly reports "Tekshirilmadi"
+ *   TAXI_API_KEY      optional — bearer token for that endpoint
+ *   TAXI_TIMEOUT_MS   optional — request timeout in ms (default 4000)
  *
  * Every adapter returns "not configured" instead of inventing an answer, so a missing
  * variable degrades the affected block to an explicit "Tekshirilmadi" state.
@@ -74,9 +78,12 @@ const RUNTIME_VARS = [
   'EPOLIS_API_URL',
   'EPOLIS_API_KEY',
   'EPOLIS_TIMEOUT_MS',
-  'MIB_API_URL',
-  'MIB_API_KEY',
-  'MIB_TIMEOUT_MS',
+  'NOTARIUS_API_URL',
+  'NOTARIUS_API_KEY',
+  'NOTARIUS_TIMEOUT_MS',
+  'TAXI_API_URL',
+  'TAXI_API_KEY',
+  'TAXI_TIMEOUT_MS',
 ];
 
 const runtimeEnv = () =>

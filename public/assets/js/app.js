@@ -12,7 +12,7 @@ import {
   isPlateNumberValid,
   isRegionValid,
 } from "./plate.js";
-import { formatMoney, formatShortTime, requestReport } from "./report.js";
+import { formatShortTime, requestReport } from "./report.js";
 import { downloadReportPdf } from "./pdf.js";
 
 const $ = (id) => document.getElementById(id);
@@ -59,20 +59,21 @@ const state = {
 };
 
 const LOAD_STEPS = [
-  { ms: 1150, progress: 38 },
-  { ms: 1400, progress: 76 },
-  { ms: 1000, progress: 95 },
+  { ms: 1150, progress: 34 },
+  { ms: 1350, progress: 78 },
+  { ms: 1000, progress: 94 },
+  { ms: 700, progress: 100 },
 ];
 
 const ICONS = {
   shield:
     '<path d="M12 3l7 3v6c0 4.3-2.9 7.7-7 9-4.1-1.3-7-4.7-7-9V6l7-3Z" /><path d="m9 12 2 2 4-4" />',
-  receipt:
-    '<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h11A2.5 2.5 0 0 1 20 8.5v3a2.5 2.5 0 0 0 0 5v3A2.5 2.5 0 0 1 17.5 22h-11A2.5 2.5 0 0 1 4 19.5v-3a2.5 2.5 0 0 0 0-5v-3Z" /><path d="M12 2v20" stroke-dasharray="2 3" />',
   lock:
     '<rect x="4.5" y="10" width="15" height="10.5" rx="2.5" /><path d="M8 10V7.5a4 4 0 0 1 8 0V10" /><path d="M12 14v2.5" />',
   clock:
     '<path d="M12 3l7.5 3.2v5.6c0 4.6-3.1 8.2-7.5 9.4-4.4-1.2-7.5-4.8-7.5-9.4V6.2L12 3Z" /><path d="M12 8v4l2.5 1.5" />',
+  car:
+    '<path d="M5 17h14" /><path d="M6.5 17V9.5l2-3h7l2 3V17" /><path d="M6.5 13h11" /><circle cx="9" cy="17" r="1.6" /><circle cx="15" cy="17" r="1.6" />',
 };
 
 /* ------------------------------- screens -------------------------------- */
@@ -196,7 +197,7 @@ async function startCheck(payload) {
   state.report = null;
 
   el.steps.forEach((step) => step.classList.remove("is-active", "is-done"));
-  setProgress(6);
+  setProgress(4);
   el.loadingPlate.textContent = `${payload.region} · ${payload.plate}`;
   el.results.replaceChildren();
   showScreen("loading");
@@ -218,7 +219,6 @@ async function startCheck(payload) {
     node.classList.remove("is-active");
     node.classList.add("is-done");
   }
-
   let report;
   try {
     report = await pending;
@@ -238,9 +238,7 @@ async function startCheck(payload) {
       toast(message);
     }
     return;
-  }
-
-  if (state.runId !== runId) return;
+  }    if (state.runId !== runId) return;
 
   setProgress(100);
   state.report = report;
@@ -308,17 +306,6 @@ function createCard(check, index) {
   top.append(title, badge);
   body.append(top);
 
-  if (typeof check.amount === "number") {
-    const amount = document.createElement("p");
-    amount.className = "rcard__amount";
-    amount.append(document.createTextNode(`${formatMoney(check.amount)} `));
-
-    const unit = document.createElement("small");
-    unit.textContent = "soʻm";
-    amount.append(unit);
-    body.append(amount);
-  }
-
   if (check.detail) {
     const detail = document.createElement("p");
     detail.className = check.note ? "rcard__sub rcard__sub--strong" : "rcard__sub";
@@ -331,32 +318,6 @@ function createCard(check, index) {
     note.className = "rcard__sub rcard__sub--muted";
     note.textContent = check.note;
     body.append(note);
-  }
-
-  if (Array.isArray(check.items) && check.items.length > 0) {
-    const list = document.createElement("ul");
-    list.className = "fines";
-
-    check.items.forEach((item) => {
-      const row = document.createElement("li");
-
-      const date = document.createElement("span");
-      date.className = "fines__date";
-      date.textContent = item.date;
-
-      const reason = document.createElement("span");
-      reason.className = "fines__desc";
-      reason.textContent = item.reason;
-
-      const sum = document.createElement("span");
-      sum.className = "fines__sum";
-      sum.textContent = formatMoney(item.amount);
-
-      row.append(date, reason, sum);
-      list.append(row);
-    });
-
-    body.append(list);
   }
 
   card.append(icon, body);
@@ -384,12 +345,18 @@ function renderResults(report) {
  * screen is a placeholder value — unwired sections are shown as "Tekshirilmagan".
  */
 
-/** MIB qatori faqat haqiqiy javobga tayanadi — javob boʻlmasa "tekshirilmadi" deydi. */
-function mibCaption(mib) {
-  if (!mib?.checked) return "MIB — tekshirilmadi";
-  if (mib.hasBan) return "MIB — taqiq bor";
-  if (mib.hasSearch) return "MIB — qidiruvda";
-  return "MIB — taqiq yoʻq";
+/** E-Notarius qatori faqat haqiqiy javobga tayanadi — javob boʻlmasa "tekshirilmadi" deydi. */
+function notariusCaption(notarius) {
+  if (!notarius?.checked) return "E-Notarius — tekshirilmadi";
+  if (notarius.hasBan) return "E-Notarius — taqiq bor";
+  if (notarius.isPledged) return "E-Notarius — garov bor";
+  return "E-Notarius — toza";
+}
+
+/** Taksi reyestri qatori. */
+function taxiCaption(taxi) {
+  if (!taxi?.checked) return "Taksi reyestri — tekshirilmadi";
+  return taxi.isTaxi ? "Taksi — litsenziya bor" : "Taksi — litsenziya yoʻq";
 }
 
 function renderSource(report) {
@@ -402,8 +369,8 @@ function renderSource(report) {
     insuranceLive
       ? "Avtomobil va sugʻurta: E-Polis (ersp.e-osgo.uz)"
       : "E-Polis maʼlumoti olinmadi",
-    mibCaption(report.mib),
-    "YHXBB va garov — integratsiya ulanmagan",
+    notariusCaption(report.notarius),
+    taxiCaption(report.taxi),
   ].join(" · ");
 }
 

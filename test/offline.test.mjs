@@ -1,12 +1,14 @@
 /**
  * AvtoInfo — oflayn testlar (`npm test`).
  *
- * Tarmoqqa chiqilmaydi: ERSP (E-Polis) va MIB oʻrniga lokal stub serverlar koʻtariladi,
- * shuning uchun testlar haqiqiy bazalarga bogʻliq emas va CI da barqaror ishlaydi.
+ * Tarmoqqa chiqilmaydi: ERSP (E-Polis), E-Notarius va taksi reyestri oʻrniga lokal stub
+ * serverlar koʻtariladi, shuning uchun testlar haqiqiy bazalarga bogʻliq emas va CI da
+ * barqaror ishlaydi.
  *
- * Qamrov: VIN dekoder, MIB adapteri (clean/banned/wanted/unavailable), E-Polis parseri,
- * parallel ishga tushirish, toʻliq hisobot tuzilishi, HTTP handler va "soxta maʼlumot
- * yoʻq" qoidasi.
+ * Qamrov: VIN dekoder, E-Notarius adapteri (clean/banned/pledged/unavailable), taksi
+ * adapteri, E-Polis parseri, parallel ishga tushirish, toʻliq hisobot tuzilishi (4 ta
+ * kartochka), HTTP handler va "soxta maʼlumot yoʻq" qoidasi. YHXBB jarimalari boʻlimi
+ * loyihadan chiqarilgani uchun testlarda ham yoʻq.
  */
 
 import assert from "node:assert/strict";
@@ -16,7 +18,12 @@ import { describe, it } from "node:test";
 import handler from "../api/check.js";
 import { buildReport, cleanRegion, insuranceStatus, normalizePlate } from "../lib/check.mjs";
 import { buildEpolisPayload, fetchEpolisData, normalizeEpolisPayload } from "../lib/epolis.mjs";
-import { buildMibPayload, checkMibBan, normalizeMibResponse } from "../lib/mib.mjs";
+import {
+  buildNotariusPayload,
+  checkVehicleBans,
+  normalizeNotariusResponse,
+} from "../lib/notarius.mjs";
+import { checkTaxiLicense } from "../lib/taxi.mjs";
 import { decodeVin, formatVinSummary, isVinValid } from "../lib/vin.mjs";
 
 /* ------------------------------- helpers ------------------------------- */
@@ -46,7 +53,30 @@ const CAR = {
 };
 
 /** Hech qachon oʻylab topilgan namunaviy qiymat hisobotga tushmasligi kerak. */
-const FORBIDDEN = ["680000", "680 000", "340000", "Universal Sug", "AS 8472915", "2 ta jarima", "TOZA", "Garovda emas"];
+const FORBIDDEN = [
+  "680000",
+  "680 000",
+  "340000",
+  "Universal Sug",
+  "AS 8472915",
+  "2 ta jarima",
+  "TOZA",
+  "Garovda emas",
+  "jarima",
+  "YHXBB",
+];
+
+const ENV_KEYS = [
+  "EPOLIS_API_URL",
+  "EPOLIS_API_KEY",
+  "EPOLIS_TIMEOUT_MS",
+  "NOTARIUS_API_URL",
+  "NOTARIUS_API_KEY",
+  "NOTARIUS_TIMEOUT_MS",
+  "TAXI_API_URL",
+  "TAXI_API_KEY",
+  "TAXI_TIMEOUT_MS",
+];
 
 function startStub(onRequest) {
   return new Promise((resolve) => {
@@ -93,7 +123,7 @@ const postWith = async (payload, env) => {
   try {
     return await post(payload);
   } finally {
-    for (const key of ["EPOLIS_API_URL", "EPOLIS_API_KEY", "EPOLIS_TIMEOUT_MS", "MIB_API_URL", "MIB_API_KEY", "MIB_TIMEOUT_MS"]) {
+    for (const key of ENV_KEYS) {
       if (previous[key] === undefined) delete process.env[key];
       else process.env[key] = previous[key];
     }
@@ -104,7 +134,7 @@ const cardOf = (report, id) => report.checks.find((check) => check.id === id);
 
 const assertNoInventedData = (report) => {
   const text = JSON.stringify(report);
-  const hits = FORBIDDEN.filter((value) => text.includes(value));
+  const hits = FORBIDDEN.filter((value) => text.toLowerCase().includes(value.toLowerCase()));
   assert.deepEqual(hits, [], `hisobotda soxta namunaviy qiymat qoldi: ${hits.join(", ")}`);
 };
 
@@ -167,36 +197,50 @@ describe("lib/vin.mjs — oflayn VIN dekoder", () => {
   });
 });
 
-/* -------------------------------- MIB adapter -------------------------------- */
+/* ------------------------------ E-Notarius adapter ------------------------------ */
 
-describe("lib/mib.mjs — MIB taqiq/qidiruv adapteri", () => {
-  it("payload davlat raqamini normallashtiradi", () => {
-    assert.deepEqual(buildMibPayload("01 a 777 aa"), { govNumber: "01A777AA" });
-    assert.deepEqual(buildMibPayload(""), { govNumber: "" });
+describe("lib/notarius.mjs — E-Notarius taqiq/garov adapteri", () => {
+  it("payload davlat raqami va texpasportni normallashtiradi", () => {
+    assert.deepEqual(buildNotariusPayload("01 a 777 aa", " aaf ", " 1234567 "), {
+      govNumber: "01A777AA",
+      techPassportSeria: "AAF",
+      techPassportNumber: "1234567",
+    });
+    assert.deepEqual(buildNotariusPayload("", "", ""), {
+      govNumber: "",
+      techPassportSeria: "",
+      techPassportNumber: "",
+    });
   });
 
-  it("JSON javobni tolerant oʻqiydi: ban, qidiruv, toza", () => {
-    const banned = normalizeMibResponse({ data: { hasBan: true, details: ["Sud qarori 2026-14"] } });
+  it("JSON javobni tolerant oʻqiydi: clean, banned, pledged", () => {
+    const clean = normalizeNotariusResponse({ data: { hasBan: false, isPledged: false } });
+    assert.equal(clean.status, "clean");
+    assert.equal(clean.hasBan, false);
+    assert.equal(clean.isPledged, false);
+
+    const banned = normalizeNotariusResponse({
+      data: { hasBan: true, details: ["Sud qarori 2026-14"] },
+    });
     assert.equal(banned.status, "banned");
     assert.equal(banned.hasBan, true);
     assert.deepEqual(banned.details, ["Sud qarori 2026-14"]);
 
-    const wanted = normalizeMibResponse({ result: { wanted: true } });
-    assert.equal(wanted.status, "wanted");
-    assert.equal(wanted.hasSearch, true);
+    const pledged = normalizeNotariusResponse({ result: { isPledged: true } });
+    assert.equal(pledged.status, "pledged");
+    assert.equal(pledged.isPledged, true);
 
-    const clean = normalizeMibResponse({ data: { hasBan: false, hasSearch: false } });
-    assert.equal(clean.status, "clean");
-    assert.equal(clean.hasBan, false);
-
-    // Boʻsh javob — xato emas, "taqiq yoʻq" ham emas: clean deb belgilanadi, lekin checked=true.
-    const empty = normalizeMibResponse({ success: true, data: {} });
+    // Boʻsh javob — xato emas: clean deb belgilanadi, lekin checked=true.
+    const empty = normalizeNotariusResponse({ success: true, data: {} });
     assert.equal(empty.status, "clean");
   });
 
-  it("MIB_API_URL berilmasa tarmoqqa chiqmaydi va unavailable qaytaradi", async () => {
+  it("NOTARIUS_API_URL berilmasa tarmoqqa chiqmaydi va unavailable qaytaradi", async () => {
     const started = Date.now();
-    const result = await checkMibBan("01 A 777 AA", {});
+    const result = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      {}
+    );
 
     assert.deepEqual(
       { checked: result.checked, status: result.status, reason: result.reason },
@@ -205,18 +249,34 @@ describe("lib/mib.mjs — MIB taqiq/qidiruv adapteri", () => {
     assert.ok(Date.now() - started < 100, "not_configured holatida tarmoq kutilmaydi");
   });
 
-  it("haqiqiy javob: toza, taqiqli, 500 va HTML holatlari", async () => {
-    const clean = await startStub(jsonReply({ data: { hasBan: false, hasSearch: false } }));
-    const cleanResult = await checkMibBan("01 A 777 AA", { MIB_API_URL: clean.url });
+  it("haqiqiy javob: toza, taqiq, garov, 500 va HTML holatlari", async () => {
+    const clean = await startStub(jsonReply({ data: { hasBan: false, isPledged: false } }));
+    const cleanResult = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: clean.url }
+    );
     assert.equal(cleanResult.checked, true);
     assert.equal(cleanResult.status, "clean");
 
     const banned = await startStub(jsonReply({ data: { hasBan: true } }));
-    const bannedResult = await checkMibBan("01 A 777 AA", { MIB_API_URL: banned.url });
+    const bannedResult = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: banned.url }
+    );
     assert.equal(bannedResult.status, "banned");
 
+    const pledged = await startStub(jsonReply({ data: { isPledged: true } }));
+    const pledgedResult = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: pledged.url }
+    );
+    assert.equal(pledgedResult.status, "pledged");
+
     const broken = await startStub(jsonReply({ error: "boom" }, { status: 500 }));
-    const brokenResult = await checkMibBan("01 A 777 AA", { MIB_API_URL: broken.url });
+    const brokenResult = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: broken.url }
+    );
     assert.equal(brokenResult.checked, false);
     assert.equal(brokenResult.status, "unavailable");
     assert.equal(brokenResult.reason, "http_500");
@@ -225,11 +285,14 @@ describe("lib/mib.mjs — MIB taqiq/qidiruv adapteri", () => {
       res.setHeader("content-type", "text/html");
       res.end("<html><body>Taqiq: yoʻq</body></html>");
     });
-    const htmlResult = await checkMibBan("01 A 777 AA", { MIB_API_URL: html.url });
+    const htmlResult = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: html.url }
+    );
     assert.equal(htmlResult.status, "unavailable");
     assert.equal(htmlResult.reason, "html_response");
 
-    await closeAll([clean, banned, broken, html]);
+    await closeAll([clean, banned, pledged, broken, html]);
   });
 
   it("osilib qolgan xizmat timeout bilan toʻxtatiladi", async () => {
@@ -237,14 +300,77 @@ describe("lib/mib.mjs — MIB taqiq/qidiruv adapteri", () => {
       /* javob yoʻq — ataylab osilgan */
     });
     const started = Date.now();
-    const result = await checkMibBan("01 A 777 AA", {
-      MIB_API_URL: slow.url,
-      MIB_TIMEOUT_MS: "200",
-    });
+    const result = await checkVehicleBans(
+      { plateNumber: "01 A 777 AA", techSeries: "AAF", techNumber: "1234567" },
+      { NOTARIUS_API_URL: slow.url, NOTARIUS_TIMEOUT_MS: "200" }
+    );
 
     assert.equal(result.status, "unavailable");
     assert.equal(result.reason, "timeout");
     assert.ok(Date.now() - started < 2000, "timeout belgilangan vaqtda toʻxtatilishi kerak");
+
+    await closeAll([slow]);
+  });
+});
+
+/* ------------------------------ Taksi adapter ------------------------------ */
+
+describe("lib/taxi.mjs — taksi litsenziyasi adapteri", () => {
+  it("TAXI_API_URL berilmasa tarmoqqa chiqmaydi va unavailable qaytaradi", async () => {
+    const started = Date.now();
+    const result = await checkTaxiLicense("01 A 777 AA", {});
+
+    assert.deepEqual(
+      { checked: result.checked, isTaxi: result.isTaxi, status: result.status, reason: result.reason },
+      { checked: false, isTaxi: false, status: "unavailable", reason: "not_configured" }
+    );
+    assert.equal(result.licenseInfo, null);
+    assert.ok(Date.now() - started < 100, "not_configured holatida tarmoq kutilmaydi");
+  });
+
+  it("haqiqiy javob: litsenziya bor/yoʻq va xato holatlari", async () => {
+    const taxi = await startStub(
+      jsonReply({ isTaxi: true, licenseInfo: { info: "Litsenziya №TS-1042" } })
+    );
+    const taxiResult = await checkTaxiLicense("01 A 777 AA", { TAXI_API_URL: taxi.url });
+    assert.equal(taxiResult.checked, true);
+    assert.equal(taxiResult.isTaxi, true);
+    assert.equal(taxiResult.status, "taxi");
+    assert.equal(taxiResult.licenseInfo.info, "Litsenziya №TS-1042");
+
+    const clean = await startStub(jsonReply({ isTaxi: false, licenseInfo: null }));
+    const cleanResult = await checkTaxiLicense("01 A 777 AA", { TAXI_API_URL: clean.url });
+    assert.equal(cleanResult.checked, true);
+    assert.equal(cleanResult.isTaxi, false);
+    assert.equal(cleanResult.status, "clean");
+
+    // Maʼlumot kalitlari yoʻq javob — "litsenziya bor" deb talqin qilinmaydi.
+    const empty = await startStub(jsonReply({ data: {} }));
+    const emptyResult = await checkTaxiLicense("01 A 777 AA", { TAXI_API_URL: empty.url });
+    assert.equal(emptyResult.checked, false);
+    assert.equal(emptyResult.status, "unavailable");
+
+    const broken = await startStub(jsonReply({ error: "boom" }, { status: 503 }));
+    const brokenResult = await checkTaxiLicense("01 A 777 AA", { TAXI_API_URL: broken.url });
+    assert.equal(brokenResult.checked, false);
+    assert.equal(brokenResult.reason, "http_503");
+
+    await closeAll([taxi, clean, empty, broken]);
+  });
+
+  it("osilib qolgan xizmat timeout bilan toʻxtatiladi", async () => {
+    const slow = await startStub(() => {
+      /* javob yoʻq */
+    });
+    const started = Date.now();
+    const result = await checkTaxiLicense("01 A 777 AA", {
+      TAXI_API_URL: slow.url,
+      TAXI_TIMEOUT_MS: "200",
+    });
+
+    assert.equal(result.status, "unavailable");
+    assert.equal(result.reason, "timeout");
+    assert.ok(Date.now() - started < 2000);
 
     await closeAll([slow]);
   });
@@ -307,85 +433,160 @@ describe("lib/epolis.mjs — parser va adapter", () => {
 
 /* ------------------------------ hisobot tuzilishi ------------------------------ */
 
-describe("lib/check.mjs — hisobot (E-Polis + MIB parallel)", () => {
-  it("toza javob: yashil MIB, real avtomobil, VIN zavod qatori, soxta raqam yoʻq", async () => {
+describe("lib/check.mjs — hisobot (E-Polis + E-Notarius + taksi parallel)", () => {
+  it("toza javob: 4 ta kartochka, yashil notarius, real avtomobil, VIN zavod qatori, soxta raqam yoʻq", async () => {
     const epolis = await startStub(jsonReply(CAR));
-    const mib = await startStub(jsonReply({ data: { hasBan: false } }));
+    const notarius = await startStub(jsonReply({ data: { hasBan: false, isPledged: false } }));
+    const taxi = await startStub(jsonReply({ isTaxi: false, licenseInfo: null }));
 
-    const report = await reportWith({ EPOLIS_API_URL: epolis.url, MIB_API_URL: mib.url });
+    const report = await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
 
     assert.equal(report.verdict.tone, "ok");
-    assert.equal(cardOf(report, "prohibitions").status, "Taqiq yoʻq");
+    assert.equal(report.checks.length, 4);
+    assert.deepEqual(
+      report.checks.map((check) => check.id),
+      ["vehicle", "prohibitions", "taxi", "insurance"]
+    );
+    assert.equal(cardOf(report, "prohibitions").status, "Taqiq yoʻq / Garovi yoʻq");
     assert.equal(cardOf(report, "prohibitions").tone, "ok");
+    assert.equal(cardOf(report, "taxi").status, "Taksi litsenziyasi yoʻq");
     assert.equal(cardOf(report, "vehicle").status, "Topildi");
     assert.match(cardOf(report, "vehicle").detail, /Chevrolet Cobalt · 2021 yil/);
     assert.match(cardOf(report, "vehicle").note, /Zavod: UzAuto Motors \(Oʻzbekiston\) · 2021 yil/);
     assert.equal(report.vin.valid, true);
     assert.equal(report.vin.wmi, "XWB");
-    assert.equal(report.mib.status, "clean");
+    assert.equal(report.notarius.status, "clean");
+    assert.equal(report.taxi.status, "clean");
     assert.equal(report.totals.bans, 0);
+    // Jarimalar boʻlimi loyihadan chiqarilgan — hisobotda umuman boʻlmasligi kerak.
+    assert.equal("fines" in report, false);
     assertNoInventedData(report);
 
-    await closeAll([epolis, mib]);
+    await closeAll([epolis, notarius, taxi]);
   });
 
-  it("MIB taqiqi: qizil kartochka va qizil verdict", async () => {
+  it("notarius taqiqi: qizil kartochka va qizil verdict", async () => {
     const epolis = await startStub(jsonReply(CAR));
-    const mib = await startStub(jsonReply({ data: { hasBan: true, details: ["Sud ijro hujjati №14"] } }));
+    const notarius = await startStub(
+      jsonReply({ data: { hasBan: true, details: ["Sud ijro hujjati №14"] } })
+    );
+    const taxi = await startStub(jsonReply({ isTaxi: false }));
 
-    const report = await reportWith({ EPOLIS_API_URL: epolis.url, MIB_API_URL: mib.url });
+    const report = await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
 
     assert.equal(cardOf(report, "prohibitions").status, "Taqiq bor");
     assert.equal(cardOf(report, "prohibitions").tone, "danger");
     assert.match(cardOf(report, "prohibitions").note, /№14/);
     assert.equal(report.verdict.tone, "danger");
-    assert.equal(report.mib.status, "banned");
+    assert.equal(report.notarius.status, "banned");
     assert.equal(report.totals.bans, 1);
     assertNoInventedData(report);
 
-    await closeAll([epolis, mib]);
+    await closeAll([epolis, notarius, taxi]);
   });
 
-  it("MIB ishlamasa: kulrang «Tekshirilmadi» va ochiq ogohlantirish", async () => {
+  it("notarius garovi: qizil kartochka va qizil verdict", async () => {
     const epolis = await startStub(jsonReply(CAR));
+    const notarius = await startStub(
+      jsonReply({ data: { isPledged: true, details: ["Ipoteka banki garovi"] } })
+    );
+    const taxi = await startStub(jsonReply({ isTaxi: false }));
 
-    const report = await reportWith({ EPOLIS_API_URL: epolis.url, MIB_API_URL: "" });
+    const report = await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
+
+    assert.equal(cardOf(report, "prohibitions").status, "Garovi bor");
+    assert.equal(cardOf(report, "prohibitions").tone, "danger");
+    assert.equal(report.verdict.label, "Avtomobilga bank garovi bor");
+    assert.equal(report.notarius.status, "pledged");
+    assertNoInventedData(report);
+
+    await closeAll([epolis, notarius, taxi]);
+  });
+
+  it("notarius ulanmagan: kulrang «Tekshirilmadi» va ochiq ogohlantirish", async () => {
+    const epolis = await startStub(jsonReply(CAR));
+    const taxi = await startStub(jsonReply({ isTaxi: false }));
+
+    const report = await reportWith({ EPOLIS_API_URL: epolis.url, TAXI_API_URL: taxi.url });
 
     assert.equal(cardOf(report, "prohibitions").status, "Tekshirilmadi");
     assert.equal(cardOf(report, "prohibitions").tone, "muted");
-    assert.equal(report.mib.checked, false);
-    assert.match(report.notice, /MIB .*tekshirilmadi/);
+    assert.equal(report.notarius.checked, false);
+    assert.match(report.notice, /E-Notarius .*tekshirilmadi/);
     assertNoInventedData(report);
 
-    await closeAll([epolis]);
+    await closeAll([epolis, taxi]);
+  });
+
+  it("taksi litsenziyasi mavjud: sariq kartochka va verdict xabari", async () => {
+    const epolis = await startStub(jsonReply(CAR));
+    const notarius = await startStub(jsonReply({ data: { hasBan: false } }));
+    const taxi = await startStub(
+      jsonReply({ isTaxi: true, licenseInfo: { info: "Litsenziya №TS-1042" } })
+    );
+
+    const report = await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
+
+    assert.equal(cardOf(report, "taxi").status, "Taksi litsenziyasi mavjud");
+    assert.equal(cardOf(report, "taxi").tone, "warn");
+    assert.match(report.verdict.label, /Taksi litsenziyasi mavjud/);
+    assertNoInventedData(report);
+
+    await closeAll([epolis, notarius, taxi]);
   });
 
   it("E-Polis topmasa: VIN yoʻq, holatlar halol qoladi", async () => {
     const epolis = await startStub(jsonReply({ data: null }));
-    const mib = await startStub(jsonReply({ data: { hasBan: false } }));
+    const notarius = await startStub(jsonReply({ data: { hasBan: false } }));
+    const taxi = await startStub(jsonReply({ isTaxi: false }));
 
-    const report = await reportWith({ EPOLIS_API_URL: epolis.url, MIB_API_URL: mib.url });
+    const report = await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
 
     assert.equal(report.vin, null);
     assert.equal(cardOf(report, "vehicle").status, "Topilmadi");
     assert.equal(cardOf(report, "insurance").status, "Polis topilmadi");
-    assert.equal(cardOf(report, "prohibitions").status, "Taqiq yoʻq");
+    assert.equal(cardOf(report, "prohibitions").status, "Taqiq yoʻq / Garovi yoʻq");
     assertNoInventedData(report);
 
-    await closeAll([epolis, mib]);
+    await closeAll([epolis, notarius, taxi]);
   });
 
-  it("ikkala manba parallel ishlaydi (ketma-ket emas)", async () => {
+  it("uchala manba parallel ishlaydi (ketma-ket emas)", async () => {
     const epolis = await startStub(jsonReply(CAR, { delay: 300 }));
-    const mib = await startStub(jsonReply({ data: { hasBan: false } }, { delay: 300 }));
+    const notarius = await startStub(jsonReply({ data: { hasBan: false } }, { delay: 300 }));
+    const taxi = await startStub(jsonReply({ isTaxi: false }, { delay: 300 }));
 
     const started = Date.now();
-    await reportWith({ EPOLIS_API_URL: epolis.url, MIB_API_URL: mib.url });
+    await reportWith({
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
     const elapsed = Date.now() - started;
 
-    assert.ok(elapsed < 560, `parallel ishlashi kerak, ketma-ket boʻlsa ~600ms boʻlardi (${elapsed}ms)`);
+    assert.ok(elapsed < 560, `parallel ishlashi kerak, ketma-ket boʻlsa ~900ms boʻlardi (${elapsed}ms)`);
 
-    await closeAll([epolis, mib]);
+    await closeAll([epolis, notarius, taxi]);
   });
 });
 
@@ -394,19 +595,25 @@ describe("lib/check.mjs — hisobot (E-Polis + MIB parallel)", () => {
 describe("api/check.js — HTTP qatlami", () => {
   it("POST haqiqiy soʻrov → 200, no-store, hisobot", async () => {
     const epolis = await startStub(jsonReply(CAR));
-    const mib = await startStub(jsonReply({ data: { hasSearch: true } }));
+    const notarius = await startStub(jsonReply({ data: { hasBan: false, isPledged: false } }));
+    const taxi = await startStub(jsonReply({ isTaxi: false }));
 
-    const response = await postWith(BODY, { EPOLIS_API_URL: epolis.url, MIB_API_URL: mib.url });
+    const response = await postWith(BODY, {
+      EPOLIS_API_URL: epolis.url,
+      NOTARIUS_API_URL: notarius.url,
+      TAXI_API_URL: taxi.url,
+    });
     const payload = await response.json();
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.equal(payload.ok, true);
     assert.equal(payload.report.plate.full, "01 · A 777 AA");
-    assert.equal(payload.report.checks.length, 5);
-    assert.equal(payload.report.mib.status, "wanted");
+    assert.equal(payload.report.checks.length, 4);
+    assert.equal(payload.report.notarius.status, "clean");
+    assert.equal(payload.report.taxi.status, "clean");
 
-    await closeAll([epolis, mib]);
+    await closeAll([epolis, notarius, taxi]);
   });
 
   it("GET → 405, notoʻgʻri tanasi → 400, katta tanasi → 413", async () => {

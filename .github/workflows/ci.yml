@@ -26,10 +26,11 @@ jobs:
       - name: Syntax check (node --check)
         run: npm run check
 
-      - name: Offline tests (stubbed E-Polis + MIB, no network)
+      - name: Offline tests (stubbed E-Polis + E-Notarius + taxi, no network)
         run: npm test
         env:
           # Kept explicit so a stray value in the environment can never make the tests
           # reach a real registry.
           EPOLIS_API_URL: ''
-          MIB_API_URL: ''
+          NOTARIUS_API_URL: ''
+          TAXI_API_URL: ''

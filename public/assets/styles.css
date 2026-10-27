@@ -1023,7 +1023,7 @@ button {
   background: rgba(52, 211, 153, 0.9);
 }
 
-/* MIB ban / wanted found: the whole banner turns red */
+/* E-Notarius ban / pledge found: the whole banner turns red */
 .verdict--danger {
   background: linear-gradient(
     100deg,
@@ -1139,7 +1139,7 @@ button {
   border-color: rgba(96, 165, 250, 0.26);
 }
 
-/* MIB ban / wanted — red */
+/* ban / pledge — red */
 .rcard[data-tone="danger"] .rcard__icon {
   color: var(--danger);
   background: rgba(251, 113, 133, 0.13);
@@ -1231,61 +1231,6 @@ button {
   margin-top: 2px;
   font-size: 11.5px;
   color: #6f7f97;
-}
-
-.rcard__amount {
-  margin-top: 7px;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #fde68a;
-}
-
-.rcard__amount small {
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0;
-  color: rgba(251, 191, 36, 0.75);
-}
-
-.fines {
-  display: flex;
-  flex-direction: column;
-  margin-top: 11px;
-  border-top: 1px dashed rgba(148, 163, 184, 0.16);
-}
-
-.fines li {
-  display: grid;
-  grid-template-columns: 66px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 0;
-  font-size: 11.5px;
-  border-bottom: 1px dashed rgba(148, 163, 184, 0.11);
-}
-
-.fines li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.fines__date {
-  font-family: var(--font-plate);
-  color: var(--muted);
-  letter-spacing: 0.02em;
-}
-
-.fines__desc {
-  color: var(--text-dim);
-  min-width: 0;
-}
-
-.fines__sum {
-  font-family: var(--font-plate);
-  font-weight: 600;
-  color: #fcd34d;
-  letter-spacing: 0.02em;
 }
 
 .actions {
