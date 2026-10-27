@@ -330,20 +330,20 @@ function drawDisclaimer(c, y, report) {
     ? notice
     : insuranceLive
       ? "Manba: E-Polis (ersp.e-osgo.uz) — avtomobil va sug'urta bo'limlari."
-      : "Manba: E-Polis'ga ulanib bo'lmadi, avtomobil ma'lumotlari yo'q.";
+      : "Manba: E-Polis'dan ma'lumot olinmadi — bo'limlar tekshirilmagan holda ko'rsatilgan.";
 
   c.rect(MARGIN, y + 14, RIGHT - MARGIN, 72, { fill: "#FFFBEB", stroke: "#FDE68A" });
   c.text("DIQQAT", MARGIN + 14, y + 34, { size: 8, bold: true, color: COLORS.warn });
   c.text(
     insuranceLive
       ? "Ushbu hisobotdagi avtomobil va sug'urta ma'lumotlari E-Polis reestridan olindi."
-      : "Ushbu hisobot namuna ma'lumotlari asosida shakllantirilgan va namuna sifatida taqdim etiladi.",
+      : "Ushbu hisobotda avtomobil va sug'urta ma'lumotlari E-Polis reestridan olinmadi — hisobotdagi bo'limlar tekshirilmagan.",
     MARGIN + 14,
     y + 50,
     { size: 8.5, color: "#7C5A16" }
   );
   c.text(
-    "MIB, YHXBB va notarial garov bo'limlari hozircha ulanmagan (bo'sh holda ko'rsatilgan).",
+    "MIB, YHXBB va notarial garov bo'limlari hozircha ulanmagan — «Tekshirilmagan» deb ko'rsatilgan.",
     MARGIN + 14,
     y + 63,
     { size: 8.5, color: "#7C5A16" }

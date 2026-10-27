@@ -83,10 +83,13 @@ Response (qisqacha):
 ```
 
 Agar E-Polis bazasidan ma`lumot kelmasa (timeout, HTML, not_found):
-- `source.registry` → `"sample"`
-- `source.insurance` → `"fallback"`
-- `report.notice` → chiroyli xabarningiz bor
-- Frontend „Tekshirilmagan“ statusini koʻrsatadi
+- `source.registry` → `"not_found"` (avtomobil bazada yoʻq) yoki `"unavailable"` (manba javob bermadi)
+- `source.insurance` → `"not_found"` yoki `"fallback"`
+- `report.notice` → oʻzbekcha tushunarli xabar
+- Frontend „Tekshirilmagan“ / „Topilmadi“ statusini koʻrsatadi va **hech qanday soxta raqam chiqarmaydi**
+
+Hisobotda oʻylab topilgan qiymat yoʻq: MIB, YHXBB va notarial garov bo`limlari
+integratsiya ulanmaguncha faqat „Tekshirilmagan“ holatida turadi.
 
 ## E-Polis / OSAGO integratsiyasi
 
@@ -135,7 +138,7 @@ Response qiymatlari:
 - `report.checks[]` — 5 ta kartka: vehicle, prohibitions, fines, pledge, insurance
 - `report.vehicle` — { model, year, vin, bodyNumber, engineNumber }
 - `report.insurance` — { company, policy, startDate, endDate, status, tone }
-- `report.source.registry` — "epolis" yoki "sample"
+- `report.source.registry` — "epolis" / "not_found" / "unavailable"
 - `report.source.insurance` — "live" / "not_found" / "fallback"
 - `report.notice` — xabar, agar E-Polis bilan bogʻlanmagan boʻlsa
 
@@ -143,7 +146,7 @@ Response qiymatlari:
 
 E-Polis endpointi hozircha CAPTCHA/sahifa qaytarmoqda (`html_response`).
 Shu sababli real soʻrovlar `fetchEpolisData` adapterda `html_response` ga tushib,
-fallback (namuna ma`lumotlari) qaytadi.
+bo`sh holatga („Tekshirilmagan“) qaytadi — soxta ma`lumot koʻrsatilmaydi.
 
 Agar sizda rasmiy API yoki proxy boʻlsa, uni `EPOLIS_API_URL` sifatida sozing:
 
@@ -195,7 +198,7 @@ PDF asbobi:
 - Teknik pasport ma`lumoti
 - Natijalar kartochkalari (5 ta)
 - Jarimalar tafsiloti (agar mavjud boʻlsa)
-- Chituish (disclaimer): E-Polis manbasi, namuna ma`lumotlari haqida
+- Chituish (disclaimer): E-Polis manbasi va tekshirilmagan bo`limlar haqida
 - Footer: AvtoInfo · Telegram Mini App, yaratilgan vaqti
 
 PDF dinamik: frontend `report` obyekti orqali, u `api/check.js` dan keladi.

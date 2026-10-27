@@ -378,9 +378,9 @@ function renderResults(report) {
 }
 
 /**
- * Honest sourcing: the banner only appears when the real insurance source failed and the
- * report fell back to sample data; the caption under the buttons always says where each
- * block came from.
+ * Honest sourcing: the banner appears when the E-Polis source could not be read at all;
+ * the caption under the buttons always says where each block came from. Nothing on this
+ * screen is a placeholder value — unwired sections are shown as "Tekshirilmagan".
  */
 function renderSource(report) {
   const notice = typeof report.notice === "string" ? report.notice.trim() : "";
@@ -390,7 +390,7 @@ function renderSource(report) {
   const insuranceLive = report.source?.insurance === "live";
   el.sourceLine.textContent = insuranceLive
     ? "Avtomobil va sugʻurta: E-Polis (ersp.e-osgo.uz) · MIB, YHXBB va garov — integratsiya ulanmagan"
-    : "E-Polis maʼlumoti olinmadi · MIB, YHXBB va garov boʻlimlari boʻsh holda";
+    : "E-Polis maʼlumoti olinmadi · MIB, YHXBB va garov — tekshirilmagan";
 }
 
 /* ------------------------------- helpers -------------------------------- */
