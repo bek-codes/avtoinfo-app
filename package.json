@@ -7,8 +7,8 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "check": "node --check lib/check.mjs && node --check lib/epolis.mjs && node --check api/check.js && node --check public/assets/js/app.js && node --check public/assets/js/pdf.js && node --check public/assets/js/report.js && node --check public/assets/js/plate.js && node --check public/assets/js/telegram.js",
-    "verify": "node .verify.mjs"
+    "check": "node --check worker.js && node --check server.mjs && node --check lib/check.mjs && node --check lib/epolis.mjs && node --check lib/mib.mjs && node --check lib/vin.mjs && node --check api/check.js && node --check public/assets/js/app.js && node --check public/assets/js/pdf.js && node --check public/assets/js/report.js && node --check public/assets/js/plate.js && node --check public/assets/js/telegram.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

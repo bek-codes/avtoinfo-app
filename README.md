@@ -88,8 +88,44 @@ Agar E-Polis bazasidan ma`lumot kelmasa (timeout, HTML, not_found):
 - `report.notice` → oʻzbekcha tushunarli xabar
 - Frontend „Tekshirilmagan“ / „Topilmadi“ statusini koʻrsatadi va **hech qanday soxta raqam chiqarmaydi**
 
-Hisobotda oʻylab topilgan qiymat yoʻq: MIB, YHXBB va notarial garov bo`limlari
-integratsiya ulanmaguncha faqat „Tekshirilmagan“ holatida turadi.
+Hisobotda oʻylab topilgan qiymat yoʻq. MIB bo`limi faqat `MIB_API_URL` berilganda tekshiriladi
+(aks holda „Tekshirilmadi“), YHXBB jarimalari va notarial garov esa hali ulanmagan — ular
+ham „Tekshirilmagan“ holatida turadi.
+
+## MIB (Majburiy ijro byurosi) integratsiyasi
+
+`lib/mib.mjs` — `checkMibBan(plateNumber, env)`:
+
+- MIB ning davlat raqami boʻyicha taqiq/qidiruv xizmati hujjatlashtirilgan ochiq JSON API
+  eʼlon qilmagan, shuning uchun adapter manzilni oʻylab topmaydi: `MIB_API_URL` boʻsh boʻlsa
+  tarmoqqa umuman chiqmaydi va `{ checked: false, status: "unavailable" }` qaytaradi.
+- Manzil berilganda `POST {MIB_API_URL}` yuboriladi, tana: `{ "govNumber": "01A777AA" }`
+  (ixtiyoriy `MIB_API_KEY` → `Authorization: Bearer`).
+- Javob tolerant oʻqiladi (`data`/`result` konteynerlari, `hasBan`/`banned`/`taqiq` …):
+  `{ checked, hasBan, hasSearch, details, status: "clean" | "banned" | "wanted" | "unavailable", reason }`.
+- HTML javob „taqiq bor“ deb talqin qilinmaydi (MIB sahifasida ham „taqiq“ soʻzi bor) —
+  bunday javob `unavailable` hisoblanadi.
+- Hech qachon throw qilmaydi: 500, timeout (`MIB_TIMEOUT_MS`, default 4000) va tarmoq xatolari
+  `{ checked: false, status: "unavailable" }` ga aylanadi.
+
+Kartochkalarda: `clean` → yashil „Taqiq yoʻq“, `banned`/`wanted` → qizil „Taqiq bor“/„Qidiruvda“,
+javob yoʻq → kulrang „Tekshirilmadi“. Xuddi shu holat PDF hisobotda ham chiqadi.
+
+## Oflayn VIN dekoder
+
+`lib/vin.mjs` — `decodeVin(vin)` tarmoqqa umuman chiqmaydi:
+
+- 1–3 belgi (WMI) → ishlab chiqaruvchi va mamlakat (XWB → UzAuto Motors / Oʻzbekiston,
+  KL1 → GM Korea, TMA → Hyundai Chexiya, LC0/LBV/LGW → Xitoy zavodlari va h.k.);
+  jadvalda boʻlmagan WMI uchun faqat hudud (1-belgi) boʻyicha mamlakat qaytadi;
+- 10-belgi → model yili (`M` → 2021); sikl 7-belgiga qarab tanlanadi (raqam → 1980+, harf → 2010+);
+- 11-belgi → zavod kodi; zavod nomi faqat tasdiqlangan jadval boʻlsa toʻladi, aks holda
+  `assemblyPlant: null` (taxmin qilinmaydi).
+- Notoʻgʻri/boʻsh VIN uchun `{ valid: false, reason }` — hech qachon throw qilmaydi.
+
+E-Polis VIN qaytarsa, `lib/check.mjs` uni dekod qilib avtomobil kartochkasiga qoʻshadi:
+`Zavod: UzAuto Motors (Oʻzbekiston) · 2021 yil`. Reyestr yilni bermasa, kartochka sarlavhasidagi
+yil ham VIN dan olinadi.
 
 ## E-Polis / OSAGO integratsiyasi
 
@@ -138,9 +174,12 @@ Response qiymatlari:
 - `report.checks[]` — 5 ta kartka: vehicle, prohibitions, fines, pledge, insurance
 - `report.vehicle` — { model, year, vin, bodyNumber, engineNumber }
 - `report.insurance` — { company, policy, startDate, endDate, status, tone }
+- `report.vin` — dekod qilingan VIN: `{ wmi, country, manufacturer, modelYear, assemblyPlant, plantCode, region, serial }` yoki `null`
+- `report.mib` — `{ checked, status, hasBan, hasSearch, details, reason }`
+- `report.totals.bans` — 1, agar MIB taqiqi yoki qidiruvi topilsa
 - `report.source.registry` — "epolis" / "not_found" / "unavailable"
 - `report.source.insurance` — "live" / "not_found" / "fallback"
-- `report.notice` — xabar, agar E-Polis bilan bogʻlanmagan boʻlsa
+- `report.notice` — xabar, agar E-Polis bilan bogʻlanmagan yoki MIB tekshirilmagan boʻlsa
 
 ## Vaqtinchalik public tunnel (Telegramda sinash uchun)
 
@@ -151,11 +190,30 @@ bo`sh holatga („Tekshirilmagan“) qaytadi — soxta ma`lumot koʻrsatilmaydi.
 Agar sizda rasmiy API yoki proxy boʻlsa, uni `EPOLIS_API_URL` sifatida sozing:
 
 ```bash
-# Vercel environment variables:
+# Vercel environment variables (server-side only):
 EPOLIS_API_URL=https://ersp.e-osgo.uz/api/v1/public/check/osgo
 EPOLIS_API_KEY=<optional bearer token>
 EPOLIS_TIMEOUT_MS=4000
+
+# MIB boʻlimini yoqish (rasmiy endpoint yoki oʻz proxyingiz):
+MIB_API_URL=https://<mib-endpoint>
+MIB_API_KEY=<optional bearer token>
+MIB_TIMEOUT_MS=4000
 ```
+
+Birorta manzil berilmasa ham ilova ishlaydi — tegishli boʻlim „Tekshirilmagan“ boʻlib qoladi.
+
+## Testlar va CI
+
+```bash
+npm run check   # barcha fayllar uchun node --check
+npm test        # oflayn testlar (tarmoqqa chiqmaydi, stub serverlar)
+```
+
+`.github/workflows/ci.yml` har bir push va pull request da Node 20 bilan shu ikkala buyruqni
+yuritadi. Testlar `test/offline.test.mjs` da: VIN dekoder, MIB adapteri (clean/banned/wanted/
+unavailable), E-Polis parseri va CSRF retry, parallel ishga tushirish, hisobot tuzilishi,
+HTTP qatlami va „soxta maʼlumot yoʻq“ qoidasi.
 
 ## Deploy
 

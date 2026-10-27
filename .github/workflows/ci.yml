@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: node --check + offline tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The project has no runtime dependencies (package.json has no `dependencies`),
+      # so there is nothing to install and `npm ci` is never required.
+      - name: Node version
+        run: node --version
+
+      - name: Syntax check (node --check)
+        run: npm run check
+
+      - name: Offline tests (stubbed E-Polis + MIB, no network)
+        run: npm test
+        env:
+          # Kept explicit so a stray value in the environment can never make the tests
+          # reach a real registry.
+          EPOLIS_API_URL: ''
+          MIB_API_URL: ''

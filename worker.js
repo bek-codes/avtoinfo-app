@@ -4,10 +4,11 @@
  * Serves the Mini App static assets and the car-history check endpoint:
  *   POST /api/check  →  { ok: true, report }
  *
- * Validation, report building and the real E-Polis (ersp.e-osgo.uz) insurance lookup live in
- * lib/check.mjs → lib/epolis.mjs, the same modules the Vercel Serverless Function
- * (api/check.js) uses, so both runtimes answer identically. EPOLIS_API_URL / EPOLIS_API_KEY
- * are read from the Worker env — they must never be exposed to the browser.
+ * Validation, report building and the real E-Polis (ersp.e-osgo.uz) insurance lookup plus the
+ * MIB ban/search adapter live in lib/check.mjs → lib/epolis.mjs / lib/mib.mjs / lib/vin.mjs,
+ * the same modules the Vercel Serverless Function (api/check.js) uses, so both runtimes answer
+ * identically. EPOLIS_* / MIB_* are read from the Worker env — they must never be exposed to
+ * the browser. A missing MIB_API_URL is not an error: that block reports "Tekshirilmadi".
  */
 
 import {
@@ -46,7 +47,7 @@ export default {
       const { payload, error } = await readJsonBody(raw);
       if (error) return toResponse(error);
 
-      // env vars (EPOLIS_API_URL …) come from the Worker bindings/vars.
+      // env vars (EPOLIS_* / MIB_*) come from the Worker bindings/vars.
       return toResponse(await handleCheckPayload(payload, env));
     }
 

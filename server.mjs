@@ -3,8 +3,8 @@
  * Dispatches every request through worker.js with a disk-backed ASSETS binding,
  * so the Mini App and /api/check behave exactly like the deployed Worker.
  *
- * The EPOLIS_* variables are passed through from the shell, so a local run can point the
- * E-Polis adapter at a stub — the same way Vercel reads them from Project settings.
+ * The EPOLIS_* and MIB_* variables are passed through from the shell, so a local run can
+ * point both adapters at a stub — the same way Vercel reads them from Project settings.
  *
  *   npm start  →  http://127.0.0.1:4173
  */
@@ -51,10 +51,14 @@ async function resolveFile(urlPath) {
 }
 
 const env = {
-  // Same variables Vercel/Workers provide at runtime; empty means "use the ERSP default".
+  // Same variables Vercel/Workers provide at runtime; empty EPOLIS_API_URL means "use the
+  // ERSP default", an empty MIB_API_URL means "MIB is not wired up yet".
   EPOLIS_API_URL: process.env.EPOLIS_API_URL ?? "",
   EPOLIS_API_KEY: process.env.EPOLIS_API_KEY ?? "",
   EPOLIS_TIMEOUT_MS: process.env.EPOLIS_TIMEOUT_MS ?? "",
+  MIB_API_URL: process.env.MIB_API_URL ?? "",
+  MIB_API_KEY: process.env.MIB_API_KEY ?? "",
+  MIB_TIMEOUT_MS: process.env.MIB_TIMEOUT_MS ?? "",
   ASSETS: {
     async fetch(request) {
       const path = await resolveFile(new URL(request.url).pathname);

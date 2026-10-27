@@ -25,6 +25,10 @@ const COLORS = {
   warnTint: "#FFF7E6",
   info: "#1D4ED8",
   infoTint: "#EFF6FF",
+  danger: "#B91C1C",
+  dangerTint: "#FEF2F2",
+  muted: "#475569",
+  mutedTint: "#F1F5F9",
 };
 
 /* ----------------------------- text helpers ----------------------------- */
@@ -240,21 +244,53 @@ function drawSectionTitle(c, label, y) {
   });
 }
 
+/** PDF bir qatorli: kartochka chetidan chiqib ketmasligi uchun matn qisqartiriladi. */
+function fit(text, maxWidth, size, bold = false) {
+  const raw = ascii(text);
+  if (measure(raw, size, bold) <= maxWidth) return raw;
+
+  let out = "";
+  for (const ch of raw) {
+    if (measure(`${out}${ch}...`, size, bold) > maxWidth) break;
+    out += ch;
+  }
+  return `${out.trimEnd()}...`;
+}
+
 const ROW = 60;
 const ROW_GAP = 8;
+const ROW_TEXT_WIDTH = RIGHT - MARGIN - 34;
 
-function drawRow(c, y, { title, detail, status, tone }) {
-  const palette = {
+function drawRow(c, y, { title, detail, note, status, tone }) {
+  const palettes = {
     ok: { fg: COLORS.ok, bg: COLORS.okTint, bar: "#10B981" },
     warn: { fg: COLORS.warn, bg: COLORS.warnTint, bar: "#F59E0B" },
     info: { fg: COLORS.info, bg: COLORS.infoTint, bar: "#3B82F6" },
-  }[tone];
+    danger: { fg: COLORS.danger, bg: COLORS.dangerTint, bar: "#DC2626" },
+    muted: { fg: COLORS.muted, bg: COLORS.mutedTint, bar: "#94A3B8" },
+  };
+
+  // Nomaʼlum ton PDF generatsiyasini yiqitmasligi kerak — neytral rangga tushadi.
+  const palette = palettes[tone] ?? palettes.info;
 
   c.rect(MARGIN, y, RIGHT - MARGIN, ROW, { fill: COLORS.white, stroke: COLORS.border });
   c.rect(MARGIN, y, 3.5, ROW, { fill: palette.bar });
 
-  c.text(title, MARGIN + 18, y + 24, { size: 12, bold: true, color: COLORS.navy });
-  c.text(detail, MARGIN + 18, y + 41, { size: 9, color: COLORS.gray });
+  c.text(fit(title, ROW_TEXT_WIDTH, 12, true), MARGIN + 18, y + 24, {
+    size: 12,
+    bold: true,
+    color: COLORS.navy,
+  });
+  c.text(fit(detail, ROW_TEXT_WIDTH, 9), MARGIN + 18, y + 41, {
+    size: 9,
+    color: COLORS.gray,
+  });
+  if (note) {
+    c.text(fit(note, ROW_TEXT_WIDTH, 7.5), MARGIN + 18, y + 52, {
+      size: 7.5,
+      color: COLORS.light,
+    });
+  }
   c.chip(status, RIGHT - 14, y + 19.5, { size: 8, fg: palette.fg, bg: palette.bg });
 }
 
@@ -274,7 +310,9 @@ function drawFindings(c, report) {
 
     drawRow(c, y, {
       title: check.title,
-      detail: check.note ? `${detail} · ${check.note}` : detail,
+      detail,
+      // Izoh alohida qatorda: VIN, dvigatel va zavod maʼlumotlari sigʻadi.
+      note: check.note ?? null,
       status: check.amount > 0 ? "TO'LANMAGAN" : check.status,
       tone: check.tone,
     });
@@ -322,6 +360,15 @@ function drawFines(c, report, y) {
   return rowY + 12;
 }
 
+/** MIB bo'limi PDF'da faqat haqiqiy javobga tayanadi (tekshirilmagan / taqiq / qidiruv / toza). */
+function mibLine(report) {
+  const mib = report?.mib;
+  if (!mib?.checked) return "MIB: tekshirilmadi";
+  if (mib.hasBan) return "MIB: taqiq bor";
+  if (mib.hasSearch) return "MIB: qidiruvda";
+  return "MIB: taqiq yo'q";
+}
+
 function drawDisclaimer(c, y, report) {
   const insuranceLive = report?.source?.insurance === "live";
   const notice = typeof report?.notice === "string" ? report.notice.trim() : "";
@@ -343,10 +390,10 @@ function drawDisclaimer(c, y, report) {
     { size: 8.5, color: "#7C5A16" }
   );
   c.text(
-    "MIB, YHXBB va notarial garov bo'limlari hozircha ulanmagan — «Tekshirilmagan» deb ko'rsatilgan.",
+    `${mibLine(report)}. YHXBB jarimalari va notarial garov bo'limlari hozircha ulanmagan — «Tekshirilmagan» deb ko'rsatilgan.`,
     MARGIN + 14,
     y + 63,
-    { size: 8.5, color: "#7C5A16" }
+    { size: 7.5, color: "#7C5A16" }
   );
   c.text(sourceLine, MARGIN + 14, y + 76, { size: 8.5, color: "#7C5A16" });
 }

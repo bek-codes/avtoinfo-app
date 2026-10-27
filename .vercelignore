@@ -9,3 +9,8 @@ node_modules
 .upstream.mjs
 .verify.mjs
 .tmp.json
+
+# Faqat lokal: testlar va CI konfiguratsiyasi deploy paketiga kerak emas
+test
+.github
+.tmp.*

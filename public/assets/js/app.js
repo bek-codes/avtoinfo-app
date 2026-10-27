@@ -372,6 +372,7 @@ function renderResults(report) {
   el.verdictText.textContent = report.verdict.label;
   el.verdictCount.textContent = String(report.verdict.count);
   el.verdict.classList.toggle("verdict--ok", report.verdict.tone === "ok");
+  el.verdict.classList.toggle("verdict--danger", report.verdict.tone === "danger");
 
   renderSource(report);
   el.results.replaceChildren(...report.checks.map(createCard));
@@ -382,15 +383,28 @@ function renderResults(report) {
  * the caption under the buttons always says where each block came from. Nothing on this
  * screen is a placeholder value — unwired sections are shown as "Tekshirilmagan".
  */
+
+/** MIB qatori faqat haqiqiy javobga tayanadi — javob boʻlmasa "tekshirilmadi" deydi. */
+function mibCaption(mib) {
+  if (!mib?.checked) return "MIB — tekshirilmadi";
+  if (mib.hasBan) return "MIB — taqiq bor";
+  if (mib.hasSearch) return "MIB — qidiruvda";
+  return "MIB — taqiq yoʻq";
+}
+
 function renderSource(report) {
   const notice = typeof report.notice === "string" ? report.notice.trim() : "";
   el.notice.hidden = notice.length === 0;
   el.noticeText.textContent = notice;
 
   const insuranceLive = report.source?.insurance === "live";
-  el.sourceLine.textContent = insuranceLive
-    ? "Avtomobil va sugʻurta: E-Polis (ersp.e-osgo.uz) · MIB, YHXBB va garov — integratsiya ulanmagan"
-    : "E-Polis maʼlumoti olinmadi · MIB, YHXBB va garov — tekshirilmagan";
+  el.sourceLine.textContent = [
+    insuranceLive
+      ? "Avtomobil va sugʻurta: E-Polis (ersp.e-osgo.uz)"
+      : "E-Polis maʼlumoti olinmadi",
+    mibCaption(report.mib),
+    "YHXBB va garov — integratsiya ulanmagan",
+  ].join(" · ");
 }
 
 /* ------------------------------- helpers -------------------------------- */

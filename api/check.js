@@ -11,6 +11,13 @@
  *   EPOLIS_API_URL    optional — override the default ERSP endpoint
  *   EPOLIS_API_KEY    optional — bearer token for that endpoint
  *   EPOLIS_TIMEOUT_MS optional — request timeout in ms (default 4000)
+ *   MIB_API_URL       optional — MIB ban/search endpoint (no public JSON API is documented,
+ *                      so without it the MIB block honestly reports "Tekshirilmadi")
+ *   MIB_API_KEY       optional — bearer token for that endpoint
+ *   MIB_TIMEOUT_MS    optional — request timeout in ms (default 4000)
+ *
+ * Every adapter returns "not configured" instead of inventing an answer, so a missing
+ * variable degrades the affected block to an explicit "Tekshirilmadi" state.
  *
  * The handler accepts both Vercel signatures: the Web one (Request → Response) and the
  * Node one (IncomingMessage, ServerResponse), so the runtime choice never breaks it.
@@ -58,12 +65,22 @@ async function readRaw(req) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-/** The runtime vars, from process.env — never from the client. */
-const runtimeEnv = () => ({
-  EPOLIS_API_URL: process.env?.EPOLIS_API_URL ?? '',
-  EPOLIS_API_KEY: process.env?.EPOLIS_API_KEY ?? '',
-  EPOLIS_TIMEOUT_MS: process.env?.EPOLIS_TIMEOUT_MS ?? '',
-});
+/**
+ * The runtime vars, from process.env — never from the client.
+ * Every variable an adapter can read must be forwarded here, otherwise the adapter would
+ * silently behave as "not configured" in production even though the variable is set.
+ */
+const RUNTIME_VARS = [
+  'EPOLIS_API_URL',
+  'EPOLIS_API_KEY',
+  'EPOLIS_TIMEOUT_MS',
+  'MIB_API_URL',
+  'MIB_API_KEY',
+  'MIB_TIMEOUT_MS',
+];
+
+const runtimeEnv = () =>
+  Object.fromEntries(RUNTIME_VARS.map((name) => [name, process.env?.[name] ?? '']));
 
 async function check(req) {
   if (String(req?.method ?? 'GET').toUpperCase() !== 'POST') {

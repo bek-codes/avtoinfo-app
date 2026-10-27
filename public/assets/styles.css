@@ -1023,6 +1023,30 @@ button {
   background: rgba(52, 211, 153, 0.9);
 }
 
+/* MIB ban / wanted found: the whole banner turns red */
+.verdict--danger {
+  background: linear-gradient(
+    100deg,
+    rgba(251, 113, 133, 0.15),
+    rgba(251, 113, 133, 0.05)
+  );
+  border-color: rgba(251, 113, 133, 0.32);
+}
+
+.verdict--danger .verdict__icon {
+  color: var(--danger);
+  background: rgba(251, 113, 133, 0.17);
+}
+
+.verdict--danger .verdict__text small {
+  color: rgba(253, 164, 175, 0.88);
+}
+
+.verdict--danger .verdict__count {
+  background: rgba(251, 113, 133, 0.9);
+  color: #2a0b12;
+}
+
 /* data-source warning (only shown when the real insurance source fell back) */
 .notice {
   display: flex;
@@ -1115,6 +1139,20 @@ button {
   border-color: rgba(96, 165, 250, 0.26);
 }
 
+/* MIB ban / wanted — red */
+.rcard[data-tone="danger"] .rcard__icon {
+  color: var(--danger);
+  background: rgba(251, 113, 133, 0.13);
+  border-color: rgba(251, 113, 133, 0.28);
+}
+
+/* could not be checked — neutral gray */
+.rcard[data-tone="muted"] .rcard__icon {
+  color: var(--muted);
+  background: rgba(134, 151, 177, 0.12);
+  border-color: rgba(134, 151, 177, 0.26);
+}
+
 .rcard__body {
   flex: 1;
   min-width: 0;
@@ -1163,6 +1201,18 @@ button {
   color: #93c5fd;
   background: rgba(96, 165, 250, 0.14);
   border-color: rgba(96, 165, 250, 0.28);
+}
+
+.rcard[data-tone="danger"] .badge {
+  color: #fda4af;
+  background: rgba(251, 113, 133, 0.14);
+  border-color: rgba(251, 113, 133, 0.3);
+}
+
+.rcard[data-tone="muted"] .badge {
+  color: #a8b6cc;
+  background: rgba(134, 151, 177, 0.13);
+  border-color: rgba(134, 151, 177, 0.28);
 }
 
 .rcard__sub {
